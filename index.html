@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aaria Realty Bulk QR Generator</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
@@ -13,7 +13,6 @@
 body{
     font-family:Arial,sans-serif;
     background:#f4f6f9;
-    margin:0;
     padding:30px;
 }
 
@@ -23,42 +22,32 @@ body{
 }
 
 .card{
-    background:white;
+    background:#fff;
     padding:25px;
     border-radius:12px;
-    box-shadow:0 2px 12px rgba(0,0,0,.08);
-}
-
-h1{
-    margin-top:0;
-}
-
-label{
-    display:block;
-    margin-top:15px;
-    font-weight:bold;
+    box-shadow:0 2px 10px rgba(0,0,0,.1);
 }
 
 input{
     width:100%;
     padding:10px;
     margin-top:5px;
+    margin-bottom:15px;
     border:1px solid #ccc;
     border-radius:6px;
 }
 
 button{
-    margin-top:20px;
-    padding:12px 20px;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-    font-size:16px;
-}
-
-.primary{
     background:#2563eb;
     color:white;
+    border:none;
+    padding:12px 20px;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#1d4ed8;
 }
 
 .progress{
@@ -68,14 +57,12 @@ button{
     background:#ddd;
     border-radius:20px;
     overflow:hidden;
-    display:none;
 }
 
 .progress-bar{
-    height:100%;
     width:0%;
-    background:#16a34a;
-    transition:.2s;
+    height:100%;
+    background:#22c55e;
 }
 
 .status{
@@ -93,8 +80,9 @@ button{
 .preview-card{
     background:white;
     padding:10px;
-    text-align:center;
     border-radius:10px;
+    text-align:center;
+    box-shadow:0 1px 5px rgba(0,0,0,.08);
 }
 
 .preview-card img{
@@ -102,34 +90,35 @@ button{
 }
 </style>
 </head>
+
 <body>
 
 <div class="container">
 
 <div class="card">
 
-<h1>Aaria Realty Bulk QR Generator</h1>
+<h2>Aaria Realty Bulk QR Generator</h2>
 
 <label>Base URL</label>
 <input id="baseUrl"
-value="https://aariarealty.com/q/" />
+value="https://aariarealty.com/q/">
 
 <label>Start Number</label>
 <input id="startNumber"
 type="number"
-value="1001" />
+value="1001">
 
 <label>End Number</label>
 <input id="endNumber"
 type="number"
-value="1010" />
+value="1010">
 
-<button class="primary" onclick="generateZip()">
-Generate & Download ZIP
+<button onclick="generateQRs()">
+Generate ZIP
 </button>
 
-<div class="progress" id="progress">
-<div class="progress-bar" id="progressBar"></div>
+<div class="progress">
+<div class="progress-bar" id="bar"></div>
 </div>
 
 <div class="status" id="status"></div>
@@ -142,78 +131,122 @@ Generate & Download ZIP
 
 <script>
 
-async function generateZip() {
+function generateQRCodeDataURL(text){
 
-    const baseUrl =
-        document.getElementById("baseUrl").value.trim();
+    return new Promise((resolve)=>{
+
+        const tempDiv = document.createElement("div");
+
+        new QRCode(tempDiv,{
+            text:text,
+            width:400,
+            height:400
+        });
+
+        setTimeout(()=>{
+
+            const img = tempDiv.querySelector("img");
+
+            if(img){
+                resolve(img.src);
+                return;
+            }
+
+            const canvas =
+                tempDiv.querySelector("canvas");
+
+            resolve(canvas.toDataURL());
+
+        },100);
+    });
+}
+
+async function generateQRs(){
 
     const start =
-        parseInt(document.getElementById("startNumber").value);
+        parseInt(
+            document.getElementById(
+                "startNumber"
+            ).value
+        );
 
     const end =
-        parseInt(document.getElementById("endNumber").value);
+        parseInt(
+            document.getElementById(
+                "endNumber"
+            ).value
+        );
 
-    if (start > end) {
-        alert("Start number must be smaller than End number");
+    const baseUrl =
+        document.getElementById(
+            "baseUrl"
+        ).value.trim();
+
+    if(start > end){
+        alert("Invalid range");
         return;
     }
 
-    const total = end - start + 1;
+    const total =
+        end - start + 1;
 
-    const progress =
-        document.getElementById("progress");
-
-    const progressBar =
-        document.getElementById("progressBar");
-
-    const status =
-        document.getElementById("status");
+    const zip =
+        new JSZip();
 
     const preview =
-        document.getElementById("preview");
+        document.getElementById(
+            "preview"
+        );
 
     preview.innerHTML = "";
 
-    progress.style.display = "block";
+    const status =
+        document.getElementById(
+            "status"
+        );
 
-    const zip = new JSZip();
+    const bar =
+        document.getElementById(
+            "bar"
+        );
 
-    for (let i = start; i <= end; i++) {
+    for(
+        let i=start;
+        i<=end;
+        i++
+    ){
 
-        const url = baseUrl + i;
+        const url =
+            baseUrl + i;
 
-        const qrDataUrl =
-            await QRCode.toDataURL(url, {
-                width: 1000,
-                margin: 2
-            });
+        const dataURL =
+            await generateQRCodeDataURL(url);
 
         const base64 =
-            qrDataUrl.split(",")[1];
+            dataURL.split(",")[1];
 
         zip.file(
             `QR_${i}.png`,
             base64,
-            { base64: true }
+            {base64:true}
         );
 
         const current =
-            i - start + 1;
+            i-start+1;
 
         const percent =
             Math.round(
-                (current / total) * 100
+                current/total*100
             );
 
-        progressBar.style.width =
+        bar.style.width =
             percent + "%";
 
         status.innerHTML =
             `Generating ${current} of ${total}`;
 
-        if (
-            current <= 12
-        ) {
+        if(current <= 12){
+
             const card =
                 document.createElement("div");
 
@@ -221,37 +254,38 @@ async function generateZip() {
                 "preview-card";
 
             card.innerHTML = `
-                <img src="${qrDataUrl}">
-                <div>${i}</div>
+                <img src="${dataURL}">
+                <div>${url}</div>
             `;
 
             preview.appendChild(card);
         }
 
-        if (current % 20 === 0) {
+        if(current % 25 === 0){
             await new Promise(
-                r => setTimeout(r, 1)
+                r=>setTimeout(r,1)
             );
         }
     }
 
     status.innerHTML =
-        "Compressing ZIP...";
+        "Creating ZIP...";
 
     const content =
         await zip.generateAsync({
-            type: "blob"
+            type:"blob"
         });
 
     saveAs(
         content,
-        `Aaria_QR_${start}_to_${end}.zip`
+        `Aaria_QR_${start}_${end}.zip`
     );
 
     status.innerHTML =
         `Done! Generated ${total} QR Codes`;
 
-    progressBar.style.width = "100%";
+    bar.style.width =
+        "100%";
 }
 
 </script>
